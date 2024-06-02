@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 using MelonLoader;
 using BucketEquipper; // The namespace of your mod class
 // ...
-[assembly: MelonInfo(typeof(BucketEquipperClass), "Equips THE Bucket", "1.0.2", "UlvakSkillz")]
+[assembly: MelonInfo(typeof(BucketEquipperClass), "Equips THE Bucket", "1.1.0", "UlvakSkillz")]
 [assembly: MelonGame("Buckethead Entertainment", "RUMBLE")]
 
 // General Information about an assembly is controlled through the following

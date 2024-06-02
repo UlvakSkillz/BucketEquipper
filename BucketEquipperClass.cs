@@ -3,6 +3,8 @@ using MelonLoader;
 using RUMBLE.Managers;
 using RUMBLE.Players;
 using System;
+using System.Collections;
+using System.IO;
 using UnityEngine;
 
 namespace BucketEquipper
@@ -16,11 +18,11 @@ namespace BucketEquipper
             PlayerController playerController = playerManager.localPlayer.Controller;
             bool showForSelf = false;
             bool showForOthers = false;
-            if (System.IO.File.Exists(@"UserData\BucketEquipper\Settings.txt"))
+            if (File.Exists(@"UserData\BucketEquipper\Settings.txt"))
             {
                 try
                 {
-                    string[] fileContents = System.IO.File.ReadAllLines(@"UserData\BucketEquipper\Settings.txt");
+                    string[] fileContents = File.ReadAllLines(@"UserData\BucketEquipper\Settings.txt");
                     if (fileContents[1].ToLower() == "true")
                     {
                         showForSelf = true;
@@ -75,6 +77,8 @@ namespace BucketEquipper
     public class BucketEquipperClass : MelonMod
     {
         private string settingsFile = @"UserData\BucketEquipper\Settings.txt";
+        private string FILEPATH = @"UserData\BucketEquipper";
+        private string FILENAME = @"Settings.txt";
         private string currentScene = "";
         private bool gymInitRan = false;
         private bool sceneChanged = false;
@@ -84,12 +88,15 @@ namespace BucketEquipper
 
         public override void OnLateInitializeMelon()
         {
-            base.OnLateInitializeMelon();
-            if (System.IO.File.Exists(settingsFile))
+            if (!File.Exists(settingsFile))
+            {
+                MelonCoroutines.Start(CheckIfFileExists(FILEPATH, FILENAME));
+            }
+            else
             {
                 try
                 {
-                    string[] fileContents = System.IO.File.ReadAllLines(settingsFile);
+                    string[] fileContents = File.ReadAllLines(settingsFile);
                     if (fileContents[1].ToLower() == "true")
                     {
                         showForSelf = true;
@@ -113,11 +120,33 @@ namespace BucketEquipper
                     MelonLogger.Error("Error Reading Settings File");
                 }
             }
-            else
+        }
+
+        public IEnumerator CheckIfFileExists(string filePath, string fileName)
+        {
+            if (!File.Exists($"{filePath}\\{fileName}"))
             {
-                showForSelf = true;
+                if (!Directory.Exists(filePath))
+                {
+                    MelonLogger.Msg($"Folder Not Found, Creating Folder: {filePath}");
+                    Directory.CreateDirectory(filePath);
+                }
+                if (!File.Exists($"{filePath}\\{fileName}"))
+                {
+                    MelonLogger.Msg($"Creating File {filePath}\\{fileName}");
+                    File.Create($"{filePath}\\{fileName}");
+                }
                 showForOthers = true;
+                showForSelf = false;
+                for (int i = 0; i < 60; i++) { yield return new WaitForFixedUpdate(); }
+                string[] newFileText = new string[4];
+                newFileText[0] = "Show On Self:";
+                newFileText[1] = "False";
+                newFileText[2] = "Show on Others:";
+                newFileText[3] = "True";
+                File.WriteAllLines($"{filePath}\\{fileName}", newFileText);
             }
+            yield return null;
         }
 
         //run every update
