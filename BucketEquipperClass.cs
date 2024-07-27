@@ -1,69 +1,30 @@
 ﻿using HarmonyLib;
 using MelonLoader;
-using RUMBLE.Managers;
-using RUMBLE.Players;
-using System;
-using System.Collections;
-using System.IO;
-using UnityEngine;
+using Il2CppRUMBLE.Managers;
+using Il2CppRUMBLE.Players;
+using RumbleModUI;
 
 namespace BucketEquipper
 {
-    [HarmonyPatch(typeof(RUMBLE.Environment.Minigames.ParkMinigame), "OnMiniGameEnded")] // Example is the name of the class
+    [HarmonyPatch(typeof(Il2CppRUMBLE.Environment.Minigames.ParkMinigame), "OnMiniGameEnded")]
     public static class Patch
     {
         private static void Postfix()
         {
-            PlayerManager playerManager = GameObject.Find("Game Instance/Initializable/PlayerManager").gameObject.GetComponent<PlayerManager>();
-            PlayerController playerController = playerManager.localPlayer.Controller;
-            bool showForSelf = false;
-            bool showForOthers = false;
-            if (File.Exists(@"UserData\BucketEquipper\Settings.txt"))
-            {
-                try
-                {
-                    string[] fileContents = File.ReadAllLines(@"UserData\BucketEquipper\Settings.txt");
-                    if (fileContents[1].ToLower() == "true")
-                    {
-                        showForSelf = true;
-                    }
-                    else
-                    {
-                        showForSelf = false;
-                    }
-                    if (fileContents[3].ToLower() == "true")
-                    {
-                        showForOthers = true;
-                    }
-                    else
-                    {
-                        showForOthers = false;
-                    }
-                }
-                catch
-                {
-                    MelonLogger.Error("Error Reading Settings File");
-                }
-            }
-            else
-            {
-                showForSelf = true;
-                showForOthers = true;
-            }
             try
             {
-                foreach (Player player in playerManager.AllPlayers)
+                foreach (Player player in PlayerManager.instance.AllPlayers)
                 {
-                    if (player.Controller.controllerType == ControllerType.Local)
+                    if (player.Controller.controllerType == Il2CppRUMBLE.Players.ControllerType.Local)
                     {
-                        if (showForSelf)
+                        if (BucketEquipperClass.showForSelf)
                         {
                             player.Controller.gameObject.transform.GetChild(6).GetChild(0).gameObject.SetActive(true);
                         }
                     }
                     else
                     {
-                        if (showForOthers)
+                        if (BucketEquipperClass.showForOthers)
                         {
                             player.Controller.gameObject.transform.GetChild(7).GetChild(0).gameObject.SetActive(true);
                         }
@@ -76,107 +37,51 @@ namespace BucketEquipper
 
     public class BucketEquipperClass : MelonMod
     {
-        private string settingsFile = @"UserData\BucketEquipper\Settings.txt";
-        private string FILEPATH = @"UserData\BucketEquipper";
-        private string FILENAME = @"Settings.txt";
-        private string currentScene = "";
-        private bool gymInitRan = false;
+        private string currentScene = "Loader";
         private bool sceneChanged = false;
-        public PlayerManager playerManager;
         private int playerCount;
-        private bool showForSelf, showForOthers;
+        public static bool showForSelf, showForOthers;
+        UI UI = UI.instance;
+        private Mod BucketEquipper = new Mod();
 
         public override void OnLateInitializeMelon()
         {
-            if (!File.Exists(settingsFile))
-            {
-                MelonCoroutines.Start(CheckIfFileExists(FILEPATH, FILENAME));
-            }
-            else
-            {
-                try
-                {
-                    string[] fileContents = File.ReadAllLines(settingsFile);
-                    if (fileContents[1].ToLower() == "true")
-                    {
-                        showForSelf = true;
-                    }
-                    else
-                    {
-                        showForSelf = false;
-                    }
-                    if (fileContents[3].ToLower() == "true")
-                    {
-                        showForOthers = true;
-                    }
-                    else
-                    {
-                        showForOthers = false;
-                    }
-                    MelonLogger.Msg("Settings Loaded | Self: " + showForSelf + " | Others: " + showForOthers);
-                }
-                catch
-                {
-                    MelonLogger.Error("Error Reading Settings File");
-                }
-            }
+            BucketEquipper.ModName = "Equips THE Bucket";
+            BucketEquipper.ModVersion = "2.0.1";
+            BucketEquipper.SetFolder("BucketEquipper");
+            BucketEquipper.AddDescription("Description", "Description", "Toggles Buckets on Everyone", new Tags { IsSummary = true });
+            BucketEquipper.AddToList("Self", false, 0, "Turns On/Off Self Bucket", new Tags { });
+            BucketEquipper.AddToList("Others", true, 0, "Turns On/Off Others Buckets", new Tags { });
+            BucketEquipper.GetFromFile();
+            showForSelf = (bool)BucketEquipper.Settings[1].Value;
+            showForOthers = (bool)BucketEquipper.Settings[2].Value;
+            BucketEquipper.ModSaved += Save;
+            UI.instance.UI_Initialized += UIInit;
         }
 
-        public IEnumerator CheckIfFileExists(string filePath, string fileName)
+        public void UIInit()
         {
-            if (!File.Exists($"{filePath}\\{fileName}"))
-            {
-                if (!Directory.Exists(filePath))
-                {
-                    MelonLogger.Msg($"Folder Not Found, Creating Folder: {filePath}");
-                    Directory.CreateDirectory(filePath);
-                }
-                if (!File.Exists($"{filePath}\\{fileName}"))
-                {
-                    MelonLogger.Msg($"Creating File {filePath}\\{fileName}");
-                    File.Create($"{filePath}\\{fileName}");
-                }
-                showForOthers = true;
-                showForSelf = false;
-                for (int i = 0; i < 60; i++) { yield return new WaitForFixedUpdate(); }
-                string[] newFileText = new string[4];
-                newFileText[0] = "Show On Self:";
-                newFileText[1] = "False";
-                newFileText[2] = "Show on Others:";
-                newFileText[3] = "True";
-                File.WriteAllLines($"{filePath}\\{fileName}", newFileText);
-            }
-            yield return null;
+            UI.AddMod(BucketEquipper);
+        }
+
+        public void Save()
+        {
+            showForSelf = (bool)BucketEquipper.Settings[1].Value;
+            showForOthers = (bool)BucketEquipper.Settings[2].Value;
+            equipBuckets();
         }
 
         //run every update
-        public override void OnUpdate()
+        public override void OnFixedUpdate()
         {
-            base.OnUpdate();
             if (sceneChanged)
             {
-                if ((currentScene == "Gym") && (!gymInitRan))
-                {
-                    try
-                    {
-                        playerManager = GameObject.Find("Game Instance/Initializable/PlayerManager").gameObject.GetComponent<PlayerManager>();
-                        gymInitRan = true;
-                    }
-                    catch(Exception e)
-                    {
-                        MelonLogger.Error(e.Message);
-                        return;
-                    }
-                }
-                if (gymInitRan)
-                {
-                    equipBuckets();
-                }
+                equipBuckets();
                 sceneChanged = false;
             }
-            else if ((currentScene != "") && (currentScene != "Loader"))
+            else if ((currentScene != "Loader") && (currentScene != "Gym"))
             {
-                if (playerCount != playerManager.AllPlayers.Count)
+                if (playerCount != PlayerManager.instance.AllPlayers.Count)
                 {
                     equipBuckets();
                 }
@@ -188,13 +93,17 @@ namespace BucketEquipper
             try
             {
                 int i = 0;
-                foreach (Player player in playerManager.AllPlayers)
+                foreach (Player player in PlayerManager.instance.AllPlayers)
                 {
-                    if (player.Controller.controllerType == ControllerType.Local)
+                    if (player.Controller.controllerType == Il2CppRUMBLE.Players.ControllerType.Local)
                     {
                         if (showForSelf)
                         {
                             player.Controller.gameObject.transform.GetChild(6).GetChild(0).gameObject.SetActive(true);
+                        }
+                        else
+                        {
+                            player.Controller.gameObject.transform.GetChild(6).GetChild(0).gameObject.SetActive(false);
                         }
                     }
                     else
@@ -202,6 +111,10 @@ namespace BucketEquipper
                         if (showForOthers)
                         {
                             player.Controller.gameObject.transform.GetChild(7).GetChild(0).gameObject.SetActive(true);
+                        }
+                        else
+                        {
+                            player.Controller.gameObject.transform.GetChild(7).GetChild(0).gameObject.SetActive(false);
                         }
                     }
                     playerCount = i;
@@ -214,7 +127,6 @@ namespace BucketEquipper
         //called when a scene is loaded
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
         {
-            base.OnSceneWasLoaded(buildIndex, sceneName);
             //update current scene
             currentScene = sceneName;
             sceneChanged = true;
